@@ -9,11 +9,29 @@ const active = new Set()
 let store = { agents: [], runs: [] }
 let scheduler = null
 
+const SHAPES = ['icosahedron', 'dodecahedron', 'octahedron', 'torusKnot', 'sphere', 'helix', 'nebula']
+
+export function defaultVisual(name = '') {
+  let hash = 0
+  for (const ch of String(name)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
+  return {
+    shape: SHAPES[hash % SHAPES.length],
+    hue: hash % 360,
+    rings: 3 + (hash % 3),
+    speed: 0.8 + ((hash >>> 4) % 8) / 10,
+  }
+}
+
 export async function initAgents() {
   await ensureDataDir()
   store = await readJson(FILE, { agents: [], runs: [] })
   if (!Array.isArray(store.agents)) store.agents = []
   if (!Array.isArray(store.runs)) store.runs = []
+  let migrated = false
+  for (const agent of store.agents) {
+    if (!agent.visual) { agent.visual = defaultVisual(agent.name); migrated = true }
+  }
+  if (migrated) await writeJson(FILE, store)
 }
 
 const persist = () => writeJson(FILE, store)
@@ -44,6 +62,7 @@ export async function saveAgent(input) {
     tools: Array.isArray(input.tools) ? input.tools : [],
     trigger: input.trigger || { type: 'manual' },
     enabled: input.enabled !== false,
+    visual: input.visual || defaultVisual(input.name),
     maxSteps: Number(input.maxSteps) || config.agentDefaults.maxSteps,
     createdAt: now, updatedAt: now, lastRun: null, runCount: 0,
   }
@@ -116,9 +135,20 @@ export async function runAgent(id, { prompt, trigger = 'manual' } = {}) {
     const messages = [{ role: 'user', content: run.prompt }]
 
     if (delegate) {
-      const result = await chat({ engineId: agent.engineId, model: agent.model, system: fullSystem, messages, timeoutMs: config.agentDefaults.timeoutMs })
+      const streamStep = { role: 'stream', content: '' }
+      run.steps.push(streamStep)
+      let lastEmit = 0
+      const result = await chat({
+        engineId: agent.engineId, model: agent.model, system: fullSystem, messages,
+        timeoutMs: config.agentDefaults.timeoutMs,
+        onDelta: (chunk) => {
+          streamStep.content += chunk
+          const now = Date.now()
+          if (now - lastEmit > 150) { lastEmit = now; emit('run', run) }
+        },
+      })
+      streamStep.content = result.text
       run.output = result.text
-      run.steps.push({ role: 'assistant', content: result.text })
     } else {
       const maxSteps = Math.min(Math.max(agent.maxSteps || 4, 1), 8)
       for (let step = 0; step < maxSteps; step++) {

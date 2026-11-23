@@ -6,7 +6,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
-import { Bot, Activity, Cpu, Terminal as TerminalIcon, Zap, Radio, ChevronRight, Circle } from 'lucide-react'
+import { Bot, Activity, Cpu, Terminal as TerminalIcon, Zap, Radio, ChevronRight, Circle, Eye, X, Play } from 'lucide-react'
+import { AGENT_SHAPES, SHAPE_ICONS, AGENT_COLORS, agentVisual } from '../lib/visuals.js'
 
 /* ------------------------------------------------------------------
    TUNEABLE VISUAL CONSTANTS
@@ -140,6 +141,32 @@ function CoreScene({ personality, state, agent, onStats }) {
       rings.push({ mesh: ring, speed: (k % 2 ? -1 : 1) * (0.12 + k * 0.05) })
     }
 
+    /* ---- per-agent core mesh (rebuilt when the selected agent changes) ---- */
+    let coreMesh = null
+    let currentShape = null
+    const buildCoreMesh = (shape) => {
+      if (coreMesh) {
+        core.remove(coreMesh)
+        coreMesh.geometry.dispose()
+        coreMesh.material.dispose()
+        coreMesh = null
+      }
+      let geo = null
+      switch (shape) {
+        case 'icosahedron': geo = new THREE.IcosahedronGeometry(0.82, 1); break
+        case 'dodecahedron': geo = new THREE.DodecahedronGeometry(0.85, 0); break
+        case 'octahedron': geo = new THREE.OctahedronGeometry(0.92, 0); break
+        case 'torusKnot': geo = new THREE.TorusKnotGeometry(0.58, 0.17, 100, 10); break
+        case 'sphere': geo = new THREE.SphereGeometry(0.85, 20, 14); break
+        case 'helix': geo = new THREE.TorusGeometry(0.72, 0.045, 8, 90); break
+        default: break
+      }
+      if (!geo) return
+      const mat = new THREE.MeshBasicMaterial({ wireframe: true, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false })
+      coreMesh = new THREE.Mesh(geo, mat)
+      core.add(coreMesh)
+    }
+
     /* ---- outer dust ---- */
     const dustBase = new Float32Array(dustCount * 3)
     for (let i = 0; i < dustCount; i++) {
@@ -216,9 +243,23 @@ function CoreScene({ personality, state, agent, onStats }) {
       const thinking = p.state === 'thinking'
       const executing = p.state === 'executing'
       const speaking = p.state === 'speaking'
-      const base = isUltron ? cyan : amber
-      const color = thinking || speaking ? amber : (executing ? cyan : base)
-      const speed = (thinking ? 3.1 : executing ? 2 : speaking ? 1.5 : 1) * (isUltron ? 1.45 : 1)
+      const visual = agentVisual(p.agent)
+      const identity = new THREE.Color().setHSL((Number(visual.hue) || 190) / 360, 0.9, 0.6)
+      const color = identity.clone()
+      if (thinking) color.lerp(amber, 0.5)
+      if (executing) color.lerp(cyan, 0.35)
+      if (speaking) color.lerp(new THREE.Color(0xff7ad9), 0.3)
+      const speed = (thinking ? 3.1 : executing ? 2 : speaking ? 1.5 : 1) * (Number(visual.speed) || 1) * (isUltron ? 1.45 : 1)
+
+      const shape = visual.shape || 'nebula'
+      if (shape !== currentShape) { buildCoreMesh(shape); currentShape = shape }
+      rings.forEach((r, i) => { r.mesh.visible = i < (Number(visual.rings) || 4) })
+      if (coreMesh) {
+        coreMesh.material.color.copy(color)
+        coreMesh.rotation.y -= dt * 0.3 * speed
+        coreMesh.rotation.x += dt * 0.12 * speed
+        coreMesh.scale.setScalar(speaking ? 1 + Math.sin(now * 0.01) * 0.09 : 1)
+      }
 
       nodeMat.color.copy(color)
       linkMat.color.copy(color)
@@ -307,7 +348,9 @@ function CoreScene({ personality, state, agent, onStats }) {
       observer.disconnect()
       controls.dispose()
       disposables.forEach((d) => d.dispose?.())
-      composer.passes?.forEach((p) => p.dispose?.())
+      coreMesh?.geometry.dispose()
+      coreMesh?.material.dispose()
+      composer?.passes?.forEach((p) => p.dispose?.())
       composer.dispose?.()
       renderer.dispose()
       if (renderer.domElement.parentNode === mount) mount.removeChild(renderer.domElement)
@@ -331,7 +374,10 @@ export default function AgentCore() {
   const [lines, setLines] = useState([{ type: 'sys', text: 'FordOS Agent Core online. Type "help" for commands.' }])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [activeRun, setActiveRun] = useState(null)
+  const [watching, setWatching] = useState(false)
   const termRef = useRef(null)
+  const feedRef = useRef(null)
   const stateTimer = useRef(null)
 
   const agent = agents.find((a) => a.id === selectedId) || agents[0] || null
@@ -356,6 +402,7 @@ export default function AgentCore() {
       try {
         const run = JSON.parse(e.data)
         setRuns((rs) => [run, ...rs.filter((r) => r.id !== run.id)].slice(0, 12))
+        setActiveRun(run)
         if (run.status === 'running') {
           setState(run.steps?.some((s) => s.role === 'tool') ? 'executing' : 'thinking')
         } else {
@@ -369,6 +416,12 @@ export default function AgentCore() {
   }, [load])
 
   useEffect(() => { termRef.current?.scrollTo(0, termRef.current.scrollHeight) }, [lines])
+  useEffect(() => { feedRef.current?.scrollTo(0, feedRef.current.scrollHeight) }, [activeRun?.steps?.length, activeRun?.output])
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') setWatching(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const push = (text, type = 'out') => setLines((l) => [...l.slice(-80), { type, text }])
 
@@ -386,6 +439,14 @@ export default function AgentCore() {
       load()
     } catch (e) { push(`ERROR ${e.message}`, 'err'); setState('idle') }
     finally { setBusy(false) }
+  }
+
+  const setVisual = async (patch) => {
+    if (!agent) return
+    try {
+      await post('/agents', { ...agent, visual: { ...agentVisual(agent), ...patch } })
+      load()
+    } catch (e) { push(`Visual update failed: ${e.message}`, 'err') }
   }
 
   const command = async (e) => {
@@ -421,6 +482,8 @@ export default function AgentCore() {
         if (m === 'jarvis' || m === 'ultron') { setPersonality(m); push(`Personality: ${m.toUpperCase()}`, 'ok') } else push('Use jarvis or ultron.', 'err')
         break
       }
+      case 'watch':
+        setWatching(true); push('Watch mode engaged. Press ESC or click CLOSE WATCH to exit.', 'sys'); break
       case 'status':
         push(`Core=${personality.toUpperCase()} State=${state.toUpperCase()} Agent=${agent?.name || 'none'} FPS=${stats.fps} Links=${stats.links}`, 'out'); break
       case 'clear': setLines([]); break
@@ -433,20 +496,31 @@ export default function AgentCore() {
   const vramPct = Math.round((usedMib / totalMib) * 100)
   const tokS = vram?.tokens?.now?.total ?? 0
   const stateInfo = STATES.find((s) => s.id === state) || STATES[0]
+  const selectedVisual = agentVisual(agent)
+  const watchRun = activeRun || runs[0] || null
+  const watchAgentName = watchRun?.agentName || agent?.name || 'Agent'
+  const watchElapsed = watchRun
+    ? Math.max(0, Math.round(((watchRun.endedAt ? new Date(watchRun.endedAt) : new Date()) - new Date(watchRun.startedAt)) / 1000))
+    : 0
 
   return (
-    <div className="app core-app">
+    <div className={`app core-app ${watching ? 'watching' : ''}`}>
       <aside className="core-panel core-left">
         <div className="core-panel-title"><Bot size={15} /> AGENT ROSTER <span>{agents.length}</span></div>
         <div className="core-agent-list">
           {agents.length === 0 && <div className="empty-mini">No agents. Create one in AI Studio.</div>}
-          {agents.map((a) => (
-            <button type="button" key={a.id} className={`core-agent ${agent?.id === a.id ? 'active' : ''}`} onClick={() => setSelectedId(a.id)}>
-              <span className="core-agent-dot" style={{ background: agent?.id === a.id ? stateInfo.color : '#55607f' }} />
-              <span><strong>{a.name}</strong><em>{a.model || 'default model'}</em></span>
-              <ChevronRight size={13} />
-            </button>
-          ))}
+          {agents.map((a) => {
+            const v = agentVisual(a)
+            const VIcon = SHAPE_ICONS[v.shape] || Bot
+            return (
+              <button type="button" key={a.id} className={`core-agent ${agent?.id === a.id ? 'active' : ''}`} onClick={() => setSelectedId(a.id)}>
+                <span className="core-agent-shape" style={{ color: `hsl(${v.hue} 90% 68%)`, background: `hsla(${v.hue} 90% 60% / .14)`, borderColor: `hsla(${v.hue} 90% 60% / .35)` }}><VIcon size={13} /></span>
+                <span><strong>{a.name}</strong><em>{v.shape} · {a.model || 'default'}</em></span>
+                {activeRun?.agentId === a.id && activeRun.status === 'running' && <span className="core-live-dot" />}
+                <ChevronRight size={13} />
+              </button>
+            )
+          })}
         </div>
         {agent && (
           <div className="core-agent-detail">
@@ -457,14 +531,27 @@ export default function AgentCore() {
               <span><Cpu size={11} /> {agent.engineId}</span>
               <span><Zap size={11} /> {agent.tools?.length || 0} tools</span>
             </div>
+            <div className="core-visual-editor">
+              <span className="eyebrow">Visual identity</span>
+              <div className="core-visual-shapes">
+                {AGENT_SHAPES.map((shape) => {
+                  const SIcon = SHAPE_ICONS[shape]
+                  return <button type="button" key={shape} title={shape} className={selectedVisual.shape === shape ? 'active' : ''} onClick={() => setVisual({ shape })}><SIcon size={14} /></button>
+                })}
+              </div>
+              <div className="core-visual-colors">
+                {AGENT_COLORS.map((hue) => <button type="button" key={hue} style={{ background: `hsl(${hue} 90% 60%)` }} className={selectedVisual.hue === hue ? 'active' : ''} onClick={() => setVisual({ hue })} aria-label={`Hue ${hue}`} />)}
+              </div>
+            </div>
             <button type="button" className="btn primary full" disabled={busy} onClick={() => runAgent(agent)}><Radio size={14} /> Run agent</button>
+            {runs.length > 0 && <button type="button" className="btn ghost full" onClick={() => setWatching(true)}><Eye size={14} /> Watch last run</button>}
           </div>
         )}
       </aside>
 
       <main className="core-center">
         <div className="core-topbar">
-          <div><span className="eyebrow"><Activity size={12} /> Neural interface</span><h1>Agent Core</h1></div>
+          <div><span className="eyebrow"><Activity size={12} /> Neural interface</span><h1>{watching ? `${watchAgentName} · live run` : 'Agent Core'}</h1></div>
           <div className="core-hud-controls">
             <div className="core-mode-switch">
               {['jarvis', 'ultron'].map((m) => <button type="button" key={m} className={personality === m ? 'active' : ''} onClick={() => setPersonality(m)}>{m.toUpperCase()}</button>)}
@@ -479,9 +566,16 @@ export default function AgentCore() {
           <CoreScene personality={personality} state={state} agent={agent} onStats={setStats} />
           <div className="hud-bracket tl" /><div className="hud-bracket tr" /><div className="hud-bracket bl" /><div className="hud-bracket br" />
           <div className="core-state-label" style={{ color: stateInfo.color }}><span className="core-pulse" style={{ background: stateInfo.color }} />{stateInfo.label.toUpperCase()}</div>
+          {activeRun?.status === 'running' && (
+            <div className="core-running-banner">
+              <span className="core-pulse" style={{ background: stateInfo.color }} />
+              <span>{activeRun.agentName} is running</span>
+              <button type="button" onClick={() => setWatching(true)}><Eye size={12} /> Watch live</button>
+            </div>
+          )}
           <div className="core-stage-foot">
             <span>FPS {stats.fps}</span><span>NODES {stats.nodes}</span><span>LINKS {stats.links}</span><span>DUST {stats.dust}</span>
-            <span className="spacer" /><span>DRAG TO ORBIT · SCROLL TO ZOOM</span>
+            <span className="spacer" /><span>{selectedVisual.shape.toUpperCase()} · HUE {selectedVisual.hue}</span>
           </div>
         </div>
 
@@ -493,6 +587,35 @@ export default function AgentCore() {
         </div>
       </main>
 
+      {watching && (
+        <aside className="core-watch-feed">
+          <header>
+            <div><span className="eyebrow">Live run feed</span><h2>{watchAgentName}</h2></div>
+            <button type="button" className="icon-btn" onClick={() => setWatching(false)} aria-label="Close watch mode"><X size={16} /></button>
+          </header>
+          <div className="core-watch-status">
+            <span className={`status-badge ${watchRun?.status === 'success' ? 'online' : watchRun?.status === 'running' ? '' : 'offline'}`}>{watchRun?.status || 'idle'}</span>
+            <span>{watchRun?.steps?.length || 0} steps</span>
+            <span>{watchElapsed}s</span>
+          </div>
+          {watchRun?.prompt && <div className="core-watch-prompt"><strong>PROMPT</strong><p>{watchRun.prompt}</p></div>}
+          <div className="core-watch-steps" ref={feedRef}>
+            {!watchRun?.steps?.length && <div className="empty-mini">Waiting for the first step…</div>}
+            {watchRun?.steps?.map((s, i) => (
+              <div className={`core-step ${s.role}`} key={i}>
+                <span className="core-step-index">{String(i + 1).padStart(2, '0')}</span>
+                <div>
+                  <strong>{s.role === 'tool' ? `TOOL · ${s.content?.tool || 'call'}` : s.role === 'stream' ? 'STREAMING' : 'ASSISTANT'}</strong>
+                  <pre>{typeof s.content === 'string' ? s.content : JSON.stringify(s.content, null, 2)}</pre>
+                </div>
+              </div>
+            ))}
+          </div>
+          {watchRun?.output && <div className="core-watch-output"><strong>RESULT</strong><p>{watchRun.output}</p></div>}
+          {watchRun?.error && <div className="run-error"><AlertCircle size={13} /> {watchRun.error}</div>}
+        </aside>
+      )}
+
       <aside className="core-panel core-right">
         <div className="core-panel-title"><TerminalIcon size={15} /> LIVE TELEMETRY</div>
         <div className="core-tool-list">
@@ -503,9 +626,9 @@ export default function AgentCore() {
         <div className="core-run-list">
           <span className="eyebrow">Recent runs</span>
           {runs.slice(0, 8).map((r) => (
-            <div className={`core-run ${r.status}`} key={r.id}>
+            <div className={`core-run ${r.status}`} key={r.id} onClick={() => { setActiveRun(r); setWatching(true) }}>
               <span className={`model-dot ${r.status === 'success' ? 'running' : ''}`} />
-              <div><strong>{r.agentName}</strong><em>{r.status} · {r.trigger}</em></div>
+              <div><strong>{r.agentName}</strong><em>{r.status} · {r.trigger} · watch</em></div>
             </div>
           ))}
           {runs.length === 0 && <div className="empty-mini">No agent runs yet.</div>}
@@ -514,7 +637,7 @@ export default function AgentCore() {
 
       <form className="core-terminal" onSubmit={command}>
         <span className="core-terminal-prompt">fordos@core:~$</span>
-        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a command — help, run <agent>, mode jarvis, state thinking…" spellCheck="false" />
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Type a command — help, run <agent>, watch, mode jarvis, state thinking…" spellCheck="false" />
         <button type="submit" className="btn primary small"><ChevronRight size={14} /> Send</button>
         <div className="core-terminal-output" ref={termRef}>
           {lines.map((l, i) => <div key={i} className={`term-${l.type}`}>{l.text}</div>)}

@@ -4,6 +4,9 @@ import {
   Pencil, Power, PowerOff, Database, Code2, Sparkles, Layers, Check,
   ChevronDown, Clock, Zap, Wrench, AlertCircle, CircleCheck, CircleX, Terminal,
 } from 'lucide-react'
+import { AGENT_SHAPES, SHAPE_ICONS, AGENT_COLORS, defaultVisual } from '../lib/visuals.js'
+
+export { AGENT_SHAPES, SHAPE_ICONS, AGENT_COLORS, defaultVisual }
 import Modal, { Field } from '../components/Modal.jsx'
 
 const api = async (path, options) => {
@@ -23,6 +26,7 @@ const blankAgent = () => ({
   name: '', description: '', systemPrompt: 'You are a helpful assistant inside FordOS. Be concise and take action when needed.',
   prompt: '', engineId: 'ollama', model: 'qwen2.5-coder:1.5b', tools: [],
   trigger: { type: 'manual', minutes: 60, expr: '0 8 * * *' }, enabled: true, maxSteps: 4,
+  visual: defaultVisual(''),
 })
 
 /* ------------------------------- chat helpers ------------------------------ */
@@ -244,11 +248,12 @@ function AgentsTab({ agents, engines, tools, loadAgents, loadRuns, setNotice }) 
         {agents.length === 0 && <div className="empty-state"><Bot size={34} /><h3>No agents yet</h3><p>Create one to automate part of your day.</p></div>}
         {agents.map((agent) => {
           const engine = engines.find((e) => e.id === agent.engineId)
-          const Icon = ENGINE_ICONS[agent.engineId] || Bot
+          const visual = { ...defaultVisual(agent.name), ...(agent.visual || {}) }
+          const Icon = SHAPE_ICONS[visual.shape] || Bot
           return (
             <div className={`agent-card ${agent.enabled ? '' : 'disabled'}`} key={agent.id}>
               <div className="agent-card-head">
-                <span className="agent-icon"><Icon size={18} /></span>
+                <span className="agent-icon" style={{ color: `hsl(${visual.hue} 90% 65%)`, background: `hsla(${visual.hue} 90% 60% / .14)` }}><Icon size={18} /></span>
                 <div><h3>{agent.name}</h3><p>{agent.description || 'No description'}</p></div>
                 <button type="button" className={`switch small ${agent.enabled ? 'on' : ''}`} onClick={() => toggle(agent)} aria-label="Toggle agent" />
               </div>
@@ -279,7 +284,7 @@ function AgentsTab({ agents, engines, tools, loadAgents, loadRuns, setNotice }) 
 }
 
 function AgentEditor({ agent, engines, tools, onClose, onSave }) {
-  const [form, setForm] = useState({ ...agent, trigger: { ...agent.trigger } })
+  const [form, setForm] = useState({ ...agent, visual: { ...defaultVisual(agent.name), ...(agent.visual || {}) }, trigger: { ...agent.trigger } })
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
   const engine = engines.find((e) => e.id === form.engineId)
   const delegate = ['hermes', 'opencode'].includes(form.engineId)
@@ -294,6 +299,20 @@ function AgentEditor({ agent, engines, tools, onClose, onSave }) {
           <Field label="Name"><input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Morning planner" /></Field>
           <Field label="Description"><input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="What does this agent do?" /></Field>
         </div>
+        <Field label="Visual model" hint="How this agent appears in Agent Core">
+          <div className="visual-picker">
+            <div className="visual-shapes">
+              {AGENT_SHAPES.map((shape) => {
+                const Icon = SHAPE_ICONS[shape]
+                return <button type="button" key={shape} title={shape} className={`visual-shape ${form.visual.shape === shape ? 'active' : ''}`} onClick={() => set('visual', { ...form.visual, shape })}><Icon size={15} /></button>
+              })}
+            </div>
+            <div className="visual-colors">
+              {AGENT_COLORS.map((hue) => <button type="button" key={hue} className={`visual-color ${form.visual.hue === hue ? 'active' : ''}`} style={{ background: `hsl(${hue} 90% 60%)` }} onClick={() => set('visual', { ...form.visual, hue })} aria-label={`Hue ${hue}`} />)}
+            </div>
+            <label className="visual-speed">Speed <input type="range" min="0.4" max="2" step="0.1" value={form.visual.speed || 1} onChange={(e) => set('visual', { ...form.visual, speed: Number(e.target.value) })} /></label>
+          </div>
+        </Field>
         <Field label="Instructions"><textarea rows={4} value={form.systemPrompt} onChange={(e) => set('systemPrompt', e.target.value)} /></Field>
         <Field label="Prompt (used for scheduled runs)" hint="Leave blank to use the instructions above"><textarea rows={2} value={form.prompt} onChange={(e) => set('prompt', e.target.value)} placeholder="Review my day and prepare a plan…" /></Field>
         <div className="form-row">

@@ -42,6 +42,8 @@ npm run preview
 A JARVIS-style neural command center (Three.js + UnrealBloomPass) that visualizes your agents:
 - **3D core** — 500-node neural web with dynamic glowing connections, four tilted dashed orbital rings, noise-driven particle dust, and orbiting sub-agent nodes for an agent's tools.
 - **State-driven visuals** — IDLE, THINKING (accelerated spin + amber flashes), EXECUTING TOOL (spawns orbiting nodes), SPEAKING (waveform displacement). Live agent runs drive these states automatically through SSE.
+- **Per-agent visuals** — every agent has its own core geometry (icosahedron, dodecahedron, octahedron, torus knot, sphere, helix, nebula), hue, ring count and speed, editable in AI Studio's agent editor or directly in Agent Core. The roster shows each agent's shape and color.
+- **Watch a run** — a running agent shows a live banner; "Watch live" expands the core and opens a step-by-step run feed (assistant text, tool calls and results, streamed output for delegated Hermes/OpenCode runs). Recent runs are clickable for review. `Esc` closes watch mode.
 - **Personalities** — JARVIS (amber, harmonic motion) and ULTRON (cyan, twitchy motion).
 - **HUD** — corner brackets, FPS/node/link telemetry, VRAM bar, tokens/sec, active tools, recent runs, and a working command terminal (`help`, `run <agent>`, `focus <agent>`, `state …`, `mode …`, `status`).
 - Tune the visuals via `BLOOM_STRENGTH`, `PARTICLE_COUNT`, and `HUD_HUE` at the top of `src/apps/AgentCore.jsx`.
