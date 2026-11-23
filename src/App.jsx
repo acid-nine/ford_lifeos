@@ -6,6 +6,7 @@ import Dock from './components/Dock.jsx'
 import Window from './components/Window.jsx'
 import Desktop from './components/Desktop.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { LayoutDashboard, CheckSquare, CalendarDays, FileText, Settings as SettingsIcon, Plus, Sun, RotateCcw, Bot, Gauge, Atom } from 'lucide-react'
 
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max)
@@ -142,7 +143,9 @@ export default function App() {
             onClose={() => closeApp(id)}
             onMinimize={() => minimizeApp(id)}
           >
-            <Component onOpenApp={openApp} onCreate={create} />
+            <ErrorBoundary name={app.title}>
+              <Component onOpenApp={openApp} onCreate={create} />
+            </ErrorBoundary>
           </Window>
         )
       })}

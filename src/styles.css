@@ -142,6 +142,10 @@ kbd {
 .empty-state p { font-size: 13px; }
 .empty-state.big { height: 100%; }
 .empty-state.big .btn { margin-top: 10px; }
+.app-error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100%; padding: 30px; text-align: center; }
+.app-error > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 14px; background: rgba(255,122,144,.12); color: #ff8a9b; }
+.app-error h3 { font-size: 15px; }
+.app-error p { font-size: 11px; color: var(--muted-2); max-width: 400px; line-height: 1.5; }
 
 .project-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
 .project-dot-label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); white-space: nowrap; }

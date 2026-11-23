@@ -33,6 +33,7 @@
   ],
   "agentDefaults": {
     "maxSteps": 4,
-    "timeoutMs": 120000
+    "timeoutMs": 120000,
+    "delegateTimeoutMs": 600000
   }
 }

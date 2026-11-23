@@ -352,6 +352,9 @@ function AgentEditor({ agent, engines, tools, onClose, onSave }) {
         )}
         {delegate && <div className="ai-hint"><Terminal size={14} /> Delegated runs use {form.engineId === 'hermes' ? 'Hermes' : 'OpenCode'}'s own tools; FordOS tools are not available here.</div>}
         <Field label="Max tool steps"><input type="number" min="1" max="8" value={form.maxSteps} onChange={(e) => set('maxSteps', Number(e.target.value))} /></Field>
+        <Field label="Timeout (seconds)" hint="Blank = 2 min direct / 10 min delegated">
+          <input type="number" min="30" value={form.timeoutMs ? Math.round(form.timeoutMs / 1000) : ''} placeholder="Auto" onChange={(e) => set('timeoutMs', e.target.value ? Number(e.target.value) * 1000 : null)} />
+        </Field>
         <label className="switch-row"><span><strong>Enabled</strong><em>Allow scheduled runs</em></span><input type="checkbox" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} /><span className="switch" /></label>
       </div>
     </Modal>

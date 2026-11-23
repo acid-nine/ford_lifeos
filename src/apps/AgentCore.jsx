@@ -6,7 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
-import { Bot, Activity, Cpu, Terminal as TerminalIcon, Zap, Radio, ChevronRight, Circle, Eye, X, Play } from 'lucide-react'
+import { Bot, Activity, Cpu, Terminal as TerminalIcon, Zap, Radio, ChevronRight, Circle, Eye, X, Play, AlertCircle } from 'lucide-react'
 import { AGENT_SHAPES, SHAPE_ICONS, AGENT_COLORS, agentVisual } from '../lib/visuals.js'
 
 /* ------------------------------------------------------------------
@@ -612,7 +612,7 @@ export default function AgentCore() {
             ))}
           </div>
           {watchRun?.output && <div className="core-watch-output"><strong>RESULT</strong><p>{watchRun.output}</p></div>}
-          {watchRun?.error && <div className="run-error"><AlertCircle size={13} /> {watchRun.error}</div>}
+          {watchRun?.error && <div className="run-error"><AlertCircle size={13} /> {String(watchRun.error)}</div>}
         </aside>
       )}
 

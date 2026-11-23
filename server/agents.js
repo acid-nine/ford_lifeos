@@ -31,6 +31,15 @@ export async function initAgents() {
   for (const agent of store.agents) {
     if (!agent.visual) { agent.visual = defaultVisual(agent.name); migrated = true }
   }
+  const cutoff = Date.now() - 10 * 60 * 1000
+  for (const run of store.runs) {
+    if (run.status === 'running' && run.startedAt && new Date(run.startedAt).getTime() < cutoff) {
+      run.status = 'error'
+      run.error = 'Interrupted by restart'
+      run.endedAt = nowISO()
+      migrated = true
+    }
+  }
   if (migrated) await writeJson(FILE, store)
 }
 
@@ -63,6 +72,7 @@ export async function saveAgent(input) {
     trigger: input.trigger || { type: 'manual' },
     enabled: input.enabled !== false,
     visual: input.visual || defaultVisual(input.name),
+    timeoutMs: Number(input.timeoutMs) || null,
     maxSteps: Number(input.maxSteps) || config.agentDefaults.maxSteps,
     createdAt: now, updatedAt: now, lastRun: null, runCount: 0,
   }
@@ -133,6 +143,9 @@ export async function runAgent(id, { prompt, trigger = 'manual' } = {}) {
     const delegate = ['hermes', 'opencode'].includes(agent.engineId)
     const fullSystem = delegate ? system : `${system}\n\n${toolInstructions(agent.tools || [])}`
     const messages = [{ role: 'user', content: run.prompt }]
+    const timeoutMs = Number(agent.timeoutMs) || (delegate
+      ? (config.agentDefaults.delegateTimeoutMs || 600000)
+      : config.agentDefaults.timeoutMs)
 
     if (delegate) {
       const streamStep = { role: 'stream', content: '' }
@@ -140,7 +153,7 @@ export async function runAgent(id, { prompt, trigger = 'manual' } = {}) {
       let lastEmit = 0
       const result = await chat({
         engineId: agent.engineId, model: agent.model, system: fullSystem, messages,
-        timeoutMs: config.agentDefaults.timeoutMs,
+        timeoutMs,
         onDelta: (chunk) => {
           streamStep.content += chunk
           const now = Date.now()
