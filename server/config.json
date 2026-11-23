@@ -1,0 +1,38 @@
+{
+  "port": 8787,
+  "ollama": {
+    "url": "http://127.0.0.1:11434"
+  },
+  "llamacpp": {
+    "ports": [18080, 18081, 18082, 18434],
+    "modelDirs": [
+      "C:/llama.cpp",
+      "C:/Users/acidn/AppData/Local/hermes/models"
+    ],
+    "server": "C:/llama.cpp/llama-server.exe"
+  },
+  "vramops": {
+    "url": "http://127.0.0.1:8765"
+  },
+  "hermes": {
+    "exe": "C:/Users/acidn/AppData/Local/hermes/bin/hermes.exe",
+    "config": "C:/Users/acidn/AppData/Local/hermes/config.yaml",
+    "modelCache": "C:/Users/acidn/AppData/Local/hermes/provider_models_cache.json"
+  },
+  "opencode": {
+    "cli": "C:/Users/acidn/AppData/Roaming/ai.opencode.desktop/cli/2.3.0-x64/opencode-cli.exe",
+    "config": "C:/Users/acidn/.config/opencode/opencode.json"
+  },
+  "genericEndpoints": [
+    {
+      "id": "strata",
+      "name": "Strata (llama.cpp)",
+      "url": "http://127.0.0.1:8080/v1",
+      "enabled": true
+    }
+  ],
+  "agentDefaults": {
+    "maxSteps": 4,
+    "timeoutMs": 120000
+  }
+}
