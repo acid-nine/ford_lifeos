@@ -7,7 +7,7 @@ import Window from './components/Window.jsx'
 import Desktop from './components/Desktop.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
-import { LayoutDashboard, CheckSquare, CalendarDays, FileText, Settings as SettingsIcon, Plus, Sun, RotateCcw, Bot, Gauge, Atom, FolderOpen } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, CalendarDays, FileText, Settings as SettingsIcon, Plus, Sun, RotateCcw, Bot, Gauge, Atom, FolderOpen, Cloud } from 'lucide-react'
 
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max)
 
@@ -121,6 +121,7 @@ export default function App() {
     { id: 'app-vram', group: 'Apps', label: 'Open VRAM Control', icon: Gauge, run: () => openApp('vram') },
     { id: 'app-core', group: 'Apps', label: 'Open Agent Core', icon: Atom, run: () => openApp('core') },
     { id: 'app-files', group: 'Apps', label: 'Open Shared Files', icon: FolderOpen, run: () => openApp('files') },
+    { id: 'app-cloud', group: 'Apps', label: 'Open Cloud Backup', icon: Cloud, run: () => openApp('cloud') },
     { id: 'app-settings', group: 'Apps', label: 'Open Settings', icon: SettingsIcon, run: () => openApp('settings') },
     { id: 'new-task', group: 'Quick actions', label: 'Create a new task', icon: Plus, run: () => create('task') },
     { id: 'new-event', group: 'Quick actions', label: 'Create a new event', icon: CalendarDays, run: () => create('event') },

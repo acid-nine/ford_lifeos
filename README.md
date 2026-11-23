@@ -52,6 +52,11 @@ A JARVIS-style neural command center (Three.js + UnrealBloomPass) that visualize
 - **HUD** — corner brackets, FPS/node/link telemetry, VRAM bar, tokens/sec, active tools, recent runs, and a working command terminal (`help`, `run <agent>`, `focus <agent>`, `state …`, `mode …`, `status`).
 - Tune the visuals via `BLOOM_STRENGTH`, `PARTICLE_COUNT`, and `HUD_HUE` at the top of `src/apps/AgentCore.jsx`.
 
+### Google Drive cloud backup
+- **Cloud Backup app** — takes a full snapshot (FordOS state, agents, briefs) and uploads it as a JSON file to a folder in your own Google Drive.
+- **Apps Script bridge** — `google/Code.gs` is a small script you paste into [script.google.com](https://script.google.com). Set a `FORDOS_SECRET` script property, deploy it as a **Web app** (execute as you, access "anyone with the link"), then paste its URL + secret into Cloud Backup → Setup. FordOS never sees your Google password, and the URL/secret are stored locally in `data/google.json` (gitignored).
+- **Restore** any remote backup to replace current tasks/events/notes/agents/briefs; download a local copy; delete remote files. Optional auto-backup interval is checked every minute.
+
 ### Remote access & shared files
 - **One-port server** (`npm run serve`) serves the built web app and the API together on port 8787, bound to all interfaces.
 - **Access code** — generated on first run and required for every `/api` call; a phone remembers it after one login. Set `accessCode` in `server/config.json` to choose your own.

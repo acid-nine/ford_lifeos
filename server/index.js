@@ -8,9 +8,10 @@ import { initState, getState, putState, subscribe, emit } from './state.js'
 import { discover } from './discovery.js'
 import { chat } from './chat.js'
 import { TOOLS } from './tools.js'
-import { initAgents, listAgents, getAgent, saveAgent, deleteAgent, listRuns, runAgent, startScheduler, extractBrief, briefTitle } from './agents.js'
+import { initAgents, listAgents, getAgent, saveAgent, deleteAgent, listRuns, runAgent, startScheduler, extractBrief, briefTitle, replaceAgents } from './agents.js'
 import { vramRequest, hfSearch, hfTree, startDownload, cancelDownload, listDownloads, downloadTargets } from './vram.js'
-import { initBriefs, listBriefs, getBrief, saveBrief, deleteBrief } from './briefs.js'
+import { initBriefs, listBriefs, getBrief, saveBrief, deleteBrief, replaceBriefs } from './briefs.js'
+import { googleSettings, saveGoogleSettings, googlePing, googleList, googleUpload, googleDownload, googleDelete } from './google.js'
 
 await initState()
 await initAgents()
@@ -51,6 +52,30 @@ const lanAddresses = () => {
 
 const SHARED_DIR = path3.join(DATA_DIR, 'shared')
 await fs.promises.mkdir(SHARED_DIR, { recursive: true })
+
+const buildBackup = async (name) => {
+  const state = await getState()
+  const payload = {
+    format: 'fordos-backup', version: 1, createdAt: new Date().toISOString(),
+    state, agents: listAgents(), briefs: listBriefs(200),
+  }
+  const fileName = name || `fordos-backup-${new Date().toISOString().replace(/[:]/g, '-').slice(0, 16)}.json`
+  await googleUpload(fileName, JSON.stringify(payload, null, 2))
+  emit('google', { name: fileName })
+  return { ok: true, name: fileName }
+}
+
+let lastAutoBackup = 0
+setInterval(async () => {
+  try {
+    const s = await googleSettings()
+    const minutes = Number(s.autoMinutes) || 0
+    if (!minutes || Date.now() - lastAutoBackup < minutes * 60000) return
+    lastAutoBackup = Date.now()
+    await buildBackup()
+  } catch { /* offline or not configured */ }
+}, 60000).unref?.()
+
 startScheduler()
 
 const PORT = config.port || 8787
@@ -124,6 +149,47 @@ const server = http.createServer(async (req, res) => {
         addresses: lanAddresses(),
         appUrl: config.appUrl || `http://<ip>:${port}`,
       })
+    }
+
+    /* ---------------- Google Drive backup bridge ---------------- */
+    if (path === '/api/google/status' && req.method === 'GET') {
+      const s = await googleSettings()
+      if (!s.webAppUrl || !s.secret) return sendJson(res, 200, { configured: false })
+      try { return sendJson(res, 200, { configured: true, autoMinutes: Number(s.autoMinutes) || 0, ...await googlePing() }) }
+      catch (e) { return sendJson(res, 200, { configured: true, autoMinutes: Number(s.autoMinutes) || 0, ok: false, error: e.message }) }
+    }
+    if (path === '/api/google/config' && req.method === 'PUT') {
+      return sendJson(res, 200, await saveGoogleSettings(await readBody(req)))
+    }
+    if (path === '/api/google/backups' && req.method === 'GET') {
+      try { return sendJson(res, 200, await googleList()) }
+      catch (e) { return sendJson(res, 502, { error: e.message }) }
+    }
+    if (path === '/api/google/backups' && req.method === 'POST') {
+      try { return sendJson(res, 200, await buildBackup((await readBody(req)).name)) }
+      catch (e) { return sendJson(res, 502, { error: e.message }) }
+    }
+    if (path === '/api/google/backups/download' && req.method === 'GET') {
+      try {
+        const text = await googleDownload(url.searchParams.get('name') || '')
+        return sendJson(res, 200, JSON.parse(text))
+      } catch (e) { return sendJson(res, 502, { error: e.message }) }
+    }
+    if (path === '/api/google/restore' && req.method === 'POST') {
+      try {
+        const body = await readBody(req)
+        const parsed = JSON.parse(await googleDownload(body.name || ''))
+        if (parsed.format !== 'fordos-backup') throw new Error('Not a FordOS backup')
+        await putState(parsed.state, null)
+        await replaceAgents(parsed.agents)
+        await replaceBriefs(parsed.briefs)
+        emit('google', { restored: body.name })
+        return sendJson(res, 200, { ok: true, restored: body.name })
+      } catch (e) { return sendJson(res, 502, { error: e.message }) }
+    }
+    if (path === '/api/google/backups' && req.method === 'DELETE') {
+      try { return sendJson(res, 200, await googleDelete(url.searchParams.get('name') || '')) }
+      catch (e) { return sendJson(res, 502, { error: e.message }) }
     }
 
     /* ---------------- shared files ---------------- */

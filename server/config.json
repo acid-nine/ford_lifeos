@@ -34,6 +34,11 @@
       "enabled": true
     }
   ],
+  "google": {
+    "webAppUrl": "",
+    "secret": "",
+    "autoMinutes": 0
+  },
   "agentDefaults": {
     "maxSteps": 4,
     "timeoutMs": 120000,

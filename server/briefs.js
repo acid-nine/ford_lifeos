@@ -14,6 +14,12 @@ export function listBriefs(limit = 60) {
   return cache.slice(0, limit)
 }
 
+export async function replaceBriefs(list) {
+  cache = Array.isArray(list) ? list : []
+  await writeJson(FILE, cache)
+  emit('brief', { replaced: true })
+}
+
 export function getBrief(id) {
   return cache.find((b) => b.id === id) || null
 }

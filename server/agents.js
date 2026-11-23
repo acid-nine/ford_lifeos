@@ -46,6 +46,12 @@ export async function initAgents() {
 
 const persist = () => writeJson(FILE, store)
 
+export async function replaceAgents(list) {
+  store.agents = Array.isArray(list) ? list : []
+  await persist()
+  emit('agents', { replaced: true })
+}
+
 export function listAgents() { return store.agents }
 export function getAgent(id) { return store.agents.find((a) => a.id === id) || null }
 export function listRuns(limit = 80) { return store.runs.slice(0, limit) }
