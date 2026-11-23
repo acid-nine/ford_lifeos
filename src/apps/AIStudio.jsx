@@ -382,7 +382,7 @@ function EnginesTab({ engines, integrations, loadEngines, busy, setBusy, onUse, 
                       {engine.models.map((m) => (
                         <div className="model-row" key={m.id}>
                           <span className={`model-dot ${m.running ? 'running' : ''}`} />
-                          <div><strong>{m.label || m.name}</strong><em>{[m.sizeGB && `${m.sizeGB} GB`, m.family, m.context && `${m.context} ctx`, m.port && `:${m.port}`].filter(Boolean).join(' · ')}</em></div>
+                          <div><strong>{m.label || m.name}</strong><em>{[m.free && 'FREE TIER', m.sizeGB && `${m.sizeGB} GB`, m.family, m.context && `${m.context} ctx`, m.port && `:${m.port}`].filter(Boolean).join(' · ')}</em></div>
                           <button type="button" className="link-btn" onClick={() => onUse(engine.id, m.id)}>Use</button>
                         </div>
                       ))}

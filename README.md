@@ -61,7 +61,7 @@ A dedicated app backed by the VRAM OPS service on `:8765`:
 | Ollama | `GET /api/tags` on `127.0.0.1:11434` | 12 local models |
 | llama.cpp | Running `/v1` servers + GGUF scan of `C:\llama.cpp` and Hermes models | 8 GGUF files, launchable via VRAM OPS on `:8765` |
 | Hermes | `config.yaml` + `provider_models_cache.json` + CLI at `~\AppData\Local\hermes\bin` | configured default + cached providers |
-| OpenCode | `~\.config\opencode\opencode.json` + `opencode-cli.exe` | configured Ollama models |
+| OpenCode | `~\.config\opencode\opencode.json` + `opencode models` via `opencode-cli.exe` | configured Ollama models plus the full CLI catalog, including all 9 free-tier models (marked `FREE TIER` in the UI) |
 | Generic | `server/config.json` → `genericEndpoints` | any `/v1/models` endpoint |
 
 To add another OpenAI-compatible engine (LM Studio, vLLM, a new llama.cpp port), edit `server/config.json`.

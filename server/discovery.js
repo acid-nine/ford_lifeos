@@ -1,6 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { config, getJson, fetchWithTimeout, simpleYaml, readJson } from './lib.js'
+
+const execFileAsync = promisify(execFile)
 
 let cache = { at: 0, value: null }
 const TTL = 8000
@@ -132,6 +136,18 @@ async function discoverHermes() {
   }
 }
 
+async function opencodeCliModels(cli) {
+  try {
+    const { stdout } = await execFileAsync(cli, ['models'], {
+      timeout: 8000, windowsHide: true, maxBuffer: 2_000_000,
+    })
+    return stdout.split(/\r?\n/).map((s) => s.trim())
+      .filter((s) => s.includes('/') && /^[A-Za-z0-9_.\/-]+$/.test(s))
+  } catch {
+    return []
+  }
+}
+
 async function discoverOpencode() {
   const cfg = await readJson(config.opencode.config, null)
   const models = []
@@ -145,15 +161,29 @@ async function discoverOpencode() {
         context: meta?.limit?.context || null,
         output: meta?.limit?.output || null,
         reasoning: meta?.settings?.reasoningEffort || null,
+        free: /-free$/i.test(name),
         running: false,
       })
     }
   }
   const cli = await exists(config.opencode.cli)
+  if (cli) {
+    for (const id of await opencodeCliModels(config.opencode.cli)) {
+      if (models.some((m) => m.id === id)) continue
+      const [provider, ...rest] = id.split('/')
+      const name = rest.join('/')
+      models.push({
+        id, name, label: name, provider,
+        free: /(^|-)free$/i.test(name),
+        source: 'cli', running: false,
+      })
+    }
+  }
+  const freeCount = models.filter((m) => m.free).length
   return {
     id: 'opencode', name: 'OpenCode', kind: 'delegate', status: cli ? 'available' : 'offline',
     endpoint: null, models, cli: config.opencode.cli,
-    note: cli ? `${models.length} configured models · CLI ready` : 'CLI not found',
+    note: cli ? `${models.length} models (${freeCount} free tier) · CLI ready` : 'CLI not found',
   }
 }
 
