@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Search, Pin, PinOff, Trash2, FileText, Eye, Pencil, Tag, Hash } from 'lucide-react'
 import { useData, useToast } from '../store.jsx'
 
@@ -53,6 +53,7 @@ export default function Notes({ initialNoteId = null }) {
   const [search, setSearch] = useState('')
   const [tagFilter, setTagFilter] = useState(null)
   const [mode, setMode] = useState('write')
+  const lastCreateRef = useRef(0)
 
   const notes = data.notes
   useEffect(() => {
@@ -71,7 +72,13 @@ export default function Notes({ initialNoteId = null }) {
   const note = notes.find((n) => n.id === selectedId) || null
 
   useEffect(() => {
-    const onCreate = (e) => { if (e.detail === 'note') { e.preventDefault(); createNote() } }
+    const onCreate = (e) => {
+      if (e.detail !== 'note') return
+      e.preventDefault()
+      if (Date.now() - lastCreateRef.current < 400) return
+      lastCreateRef.current = Date.now()
+      createNote()
+    }
     const onOpen = (e) => {
       if (!e.detail) return
       e.preventDefault()

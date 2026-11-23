@@ -88,7 +88,7 @@ export default function App() {
   const emit = useCallback((name, detail) => {
     let attempt = 0
     const send = () => {
-      const handled = !window.dispatchEvent(new CustomEvent(name, { detail }))
+      const handled = !window.dispatchEvent(new CustomEvent(name, { detail, cancelable: true }))
       if (!handled && attempt++ < 6) setTimeout(send, 120)
     }
     setTimeout(send, 50)
