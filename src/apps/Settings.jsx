@@ -1,5 +1,5 @@
-import React, { useRef } from 'react'
-import { User, Palette, Image as ImageIcon, Database, Download, Upload, RotateCcw, Info, Check, MonitorSmartphone, Bot } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import { User, Palette, Image as ImageIcon, Database, Download, Upload, RotateCcw, Info, Check, MonitorSmartphone, Bot, Smartphone, Copy, KeyRound, Globe } from 'lucide-react'
 import { Field } from '../components/Modal.jsx'
 import { useData, useToast } from '../store.jsx'
 
@@ -31,7 +31,18 @@ export default function Settings({ onOpenApp }) {
   const { data, setSetting, resetData, importData } = useData()
   const toast = useToast()
   const fileRef = useRef(null)
+  const [access, setAccess] = useState(null)
+  const [copied, setCopied] = useState('')
   const s = data.settings
+
+  useEffect(() => {
+    const token = encodeURIComponent(localStorage.getItem('fordos.token') || '')
+    fetch(`/api/access?token=${token}`).then((r) => r.json()).then(setAccess).catch(() => {})
+  }, [])
+
+  const copy = async (text, key) => {
+    try { await navigator.clipboard.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 1500) } catch { /* ignore */ }
+  }
 
   const exportData = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -113,6 +124,19 @@ export default function Settings({ onOpenApp }) {
             <input ref={fileRef} type="file" accept="application/json,.json" onChange={onImport} hidden />
             <button type="button" className="btn danger ghost" onClick={() => { if (confirm('Reset all data back to the demo content? This cannot be undone.')) { resetData(); toast('Data reset to demo', '↺') } }}><RotateCcw size={15} /> Reset demo data</button>
           </div>
+        </Section>
+
+        <Section icon={Smartphone} title="Remote access" description="Open FordOS from your phone on the same Wi-Fi">
+          <p className="settings-note">The server is reachable on your local network. Open one of these addresses on your phone and enter the access code below. For internet access, use a VPN or tunnel instead of port-forwarding this service.</p>
+          <div className="remote-list">
+            {access?.addresses?.map((a) => {
+              const url = `http://${a.address}:${access.port}`
+              return <div className="remote-row" key={a.address}><span><Globe size={13} /> {url} <em>{a.iface}</em></span><button type="button" className="btn ghost small" onClick={() => copy(url, a.address)}>{copied === a.address ? <Check size={13} /> : <Copy size={13} />} Copy</button></div>
+            })}
+            {!access?.addresses?.length && <div className="remote-row">No LAN address detected.</div>}
+            <div className="remote-row code"><span><KeyRound size={13} /> Access code <strong>{access?.code || '—'}</strong></span><button type="button" className="btn ghost small" onClick={() => copy(access?.code || '', 'code')}>{copied === 'code' ? <Check size={13} /> : <Copy size={13} />} Copy</button></div>
+          </div>
+          <p className="settings-note">Exported backups, agents, briefs and shared files all live on this machine — nothing is uploaded anywhere.</p>
         </Section>
 
         <Section icon={Bot} title="AI & engines" description="Local inference, agents and automations">

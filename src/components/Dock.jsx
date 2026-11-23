@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, CheckSquare, FileText, Settings as SettingsIcon, LayoutDashboard, CalendarDays, Bot, Gauge, Atom } from 'lucide-react'
+import { Plus, CheckSquare, FileText, Settings as SettingsIcon, LayoutDashboard, CalendarDays, Bot, Gauge, Atom, FolderOpen } from 'lucide-react'
 
 const DEFAULT_ICONS = {
   dashboard: LayoutDashboard,
@@ -9,6 +9,7 @@ const DEFAULT_ICONS = {
   ai: Bot,
   vram: Gauge,
   core: Atom,
+  files: FolderOpen,
   settings: SettingsIcon,
 }
 

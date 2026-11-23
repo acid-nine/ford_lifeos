@@ -14,12 +14,15 @@ This starts two services together:
 - **Web** — Vite on `http://localhost:5173`
 - **API** — Node on `http://127.0.0.1:8787` (proxied as `/api` by Vite)
 
-For production:
+For production / phone access:
 
 ```bash
-npm run build
-npm run preview
+npm run serve
 ```
+
+This builds the app and serves both the UI and API from `http://0.0.0.0:8787` on one port. On first start it prints an **access code** and saves it in `data/access-code.json`. Open `http://<your-LAN-IP>:8787` on your phone, enter that code once, and you get the same interface with full agent control, briefs, chat and shared files. The LAN URLs and code are also shown in **Settings → Remote access**.
+
+`npm run dev` keeps the split Vite (5173) + API (8787) setup for local development.
 
 ## What's in it
 
@@ -48,6 +51,14 @@ A JARVIS-style neural command center (Three.js + UnrealBloomPass) that visualize
 - **Personalities** — JARVIS (amber, harmonic motion) and ULTRON (cyan, twitchy motion).
 - **HUD** — corner brackets, FPS/node/link telemetry, VRAM bar, tokens/sec, active tools, recent runs, and a working command terminal (`help`, `run <agent>`, `focus <agent>`, `state …`, `mode …`, `status`).
 - Tune the visuals via `BLOOM_STRENGTH`, `PARTICLE_COUNT`, and `HUD_HUE` at the top of `src/apps/AgentCore.jsx`.
+
+### Remote access & shared files
+- **One-port server** (`npm run serve`) serves the built web app and the API together on port 8787, bound to all interfaces.
+- **Access code** — generated on first run and required for every `/api` call; a phone remembers it after one login. Set `accessCode` in `server/config.json` to choose your own.
+- **Shared Files app** — upload/download/delete files in `data/shared`; the same folder is writable directly from the desktop. Files are served with the access token in the URL.
+- **Mobile layout** — windows go fullscreen on narrow screens, dock scales down, and the Agent Core watch feed stacks under the 3D core.
+
+For internet access use a VPN or tunnel (Tailscale/Cloudflared) rather than port-forwarding. The access code is a simple LAN gate, not a full auth system.
 
 ### VRAM Control
 A dedicated app backed by the VRAM OPS service on `:8765`:

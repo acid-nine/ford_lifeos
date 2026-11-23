@@ -142,6 +142,15 @@ kbd {
 .empty-state p { font-size: 13px; }
 .empty-state.big { height: 100%; }
 .empty-state.big .btn { margin-top: 10px; }
+.boot-screen, .login-screen { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 30%, rgba(139,124,255,.16), transparent 60%), #070912; color: var(--muted); font-size: 13px; }
+.login-card { width: min(380px, 92vw); padding: 30px; display: flex; flex-direction: column; gap: 10px; text-align: center; }
+.login-logo { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 6px; border-radius: 13px; background: linear-gradient(135deg, var(--accent), #57d9ff); color: #fff; font-size: 22px; font-weight: 800; }
+.login-card h1 { font-size: 21px; letter-spacing: -.03em; color: var(--text); }
+.login-card p { font-size: 12px; color: var(--muted-2); }
+.login-card input { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border); background: rgba(255,255,255,.05); outline: none; font-family: ui-monospace, Menlo, monospace; letter-spacing: .14em; text-align: center; text-transform: uppercase; }
+.login-card input:focus { border-color: var(--accent-mid); }
+.login-error { color: #ff9fb0; font-size: 11px; }
+.login-card small { font-size: 10px; color: var(--muted-2); }
 .app-error { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; height: 100%; padding: 30px; text-align: center; }
 .app-error > span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 14px; background: rgba(255,122,144,.12); color: #ff8a9b; }
 .app-error h3 { font-size: 15px; }
@@ -1000,6 +1009,49 @@ kbd {
 .brief-body h1, .brief-body h2, .brief-body h3 { font-family: inherit; }
 .core-watch-output strong { font-size: 9px; letter-spacing: .12em; color: #5fe0d2; }
 .core-watch-output p { margin-top: 6px; font-size: 11px; line-height: 1.6; color: #d8f5ff; white-space: pre-wrap; }
+
+/* ============================================================
+   Shared files & remote access
+   ============================================================ */
+.files-app { flex-direction: column; }
+.files-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px 20px; }
+.files-location { display: flex; align-items: center; gap: 11px; padding: 12px 14px; margin-bottom: 14px; border-radius: 12px; background: rgba(0,240,255,.05); border: 1px solid rgba(0,240,255,.16); }
+.files-location-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: rgba(0,240,255,.12); color: #00f0ff; }
+.files-location > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.files-location strong { font-size: 12px; }
+.files-location code { font-size: 10px; color: var(--muted-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.files-total { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted); white-space: nowrap; }
+.file-list { display: flex; flex-direction: column; gap: 6px; }
+.file-row { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 10px; background: rgba(255,255,255,.035); border: 1px solid var(--border); }
+.file-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.file-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.file-info strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-info em { font-style: normal; font-size: 10px; color: var(--muted-2); }
+.file-actions { display: flex; align-items: center; gap: 6px; }
+.remote-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.remote-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border-radius: 9px; background: rgba(255,255,255,.035); border: 1px solid var(--border); font-size: 11px; }
+.remote-row span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #9fe6f5; font-family: ui-monospace, Menlo, monospace; }
+.remote-row em { font-style: normal; color: var(--muted-2); font-size: 9px; }
+.remote-row.code strong { color: #ffc266; letter-spacing: .12em; }
+
+@media (max-width: 700px) {
+  .topbar-nav, .topbar-search, .status-icons { display: none; }
+  .topbar { padding: 0 10px; }
+  .clock-date { display: none; }
+  .window { left: 6px !important; top: 52px !important; width: calc(100vw - 12px) !important; height: calc(100dvh - 134px) !important; }
+  .window.is-maximized { inset: 52px 6px 82px; }
+  .window-resize { display: none; }
+  .dock-wrap { bottom: 6px; transform: translateX(-50%) scale(.86); }
+  .desktop-layer { padding: 22px 16px; }
+  .desktop-hero { padding: 22px; }
+  .desktop-stats { flex-wrap: wrap; }
+  .core-app.watching { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 190px; grid-template-areas: "center" "feed"; }
+  .core-telemetry { grid-template-columns: repeat(2, 1fr); }
+  .core-topbar { flex-direction: column; align-items: flex-start; }
+  .brief-library { grid-template-columns: 1fr; height: auto; max-height: 60vh; }
+  .brief-list { max-height: 140px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .file-row { flex-wrap: wrap; }
+}
 
 @media (max-width: 900px) {
   .core-app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) 130px; grid-template-areas: "center" "term"; }

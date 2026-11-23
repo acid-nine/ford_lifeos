@@ -1,6 +1,10 @@
 import http from 'node:http'
-import { config } from './lib.js'
-import { initState, getState, putState, subscribe } from './state.js'
+import fs from 'node:fs'
+import path3 from 'node:path'
+import os from 'node:os'
+import crypto from 'node:crypto'
+import { config, DATA_DIR, ROOT, readJson, writeJson } from './lib.js'
+import { initState, getState, putState, subscribe, emit } from './state.js'
 import { discover } from './discovery.js'
 import { chat } from './chat.js'
 import { TOOLS } from './tools.js'
@@ -21,6 +25,32 @@ try {
     await saveBrief({ title: briefTitle(run.agentName || 'Agent', body), body, agentId: run.agentId, agentName: run.agentName, runId: run.id, prompt: run.prompt })
   }
 } catch { /* best effort */ }
+
+/* Access code — generated once and reused, or taken from config.json */
+let accessCode = String(config.accessCode || '').trim()
+if (!accessCode) {
+  const file = path3.join(DATA_DIR, 'access-code.json')
+  let stored = await readJson(file, null)
+  if (!stored?.code) {
+    stored = { code: crypto.randomBytes(3).toString('hex').toUpperCase() }
+    await writeJson(file, stored)
+  }
+  accessCode = stored.code
+}
+console.log(`FordOS access code: ${accessCode}`)
+
+const lanAddresses = () => {
+  const out = []
+  for (const [iface, addrs] of Object.entries(os.networkInterfaces())) {
+    for (const a of addrs || []) {
+      if (a.family === 'IPv4' && !a.internal) out.push({ iface, address: a.address })
+    }
+  }
+  return out
+}
+
+const SHARED_DIR = path3.join(DATA_DIR, 'shared')
+await fs.promises.mkdir(SHARED_DIR, { recursive: true })
 startScheduler()
 
 const PORT = config.port || 8787
@@ -59,6 +89,11 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
   const path = url.pathname
 
+  if (path.startsWith('/api/') && path !== '/api/health' && path !== '/api/login') {
+    const supplied = req.headers['x-fordos-token'] || url.searchParams.get('token')
+    if (!supplied || supplied !== accessCode) return sendJson(res, 401, { error: 'Access code required' })
+  }
+
   try {
     /* ---------------- health / meta ---------------- */
     if (path === '/api/health' && req.method === 'GET') {
@@ -72,6 +107,64 @@ const server = http.createServer(async (req, res) => {
       const heartbeat = setInterval(() => { try { res.write(': ping\n\n') } catch { /* noop */ } }, 20000)
       req.on('close', () => { clearInterval(heartbeat); sseClients.delete(res) })
       return
+    }
+
+    /* ---------------- remote access ---------------- */
+    if (path === '/api/login' && req.method === 'POST') {
+      const body = await readBody(req)
+      return String(body.code || '').trim() === accessCode
+        ? sendJson(res, 200, { ok: true })
+        : sendJson(res, 401, { error: 'Wrong access code' })
+    }
+    if (path === '/api/access' && req.method === 'GET') {
+      const port = PORT
+      return sendJson(res, 200, {
+        code: accessCode, port,
+        sharedDir: SHARED_DIR,
+        addresses: lanAddresses(),
+        appUrl: config.appUrl || `http://<ip>:${port}`,
+      })
+    }
+
+    /* ---------------- shared files ---------------- */
+    if (path === '/api/files' && req.method === 'GET') {
+      const entries = await fs.promises.readdir(SHARED_DIR, { withFileTypes: true })
+      const list = await Promise.all(entries.map(async (e) => {
+        if (!e.isFile()) return null
+        try {
+          const stat = await fs.promises.stat(path3.join(SHARED_DIR, e.name))
+          return { name: e.name, size: stat.size, modified: stat.mtime.toISOString() }
+        } catch { return null }
+      }))
+      return sendJson(res, 200, list.filter(Boolean).sort((a, b) => b.modified.localeCompare(a.modified)))
+    }
+    if (path === '/api/files' && req.method === 'POST') {
+      const body = await readBody(req)
+      const name = path3.basename(String(body.name || '')).replace(/[^A-Za-z0-9._ -]/g, '_')
+      if (!name || name === '.' || name === '..') return sendJson(res, 400, { error: 'Invalid filename' })
+      await fs.promises.writeFile(path3.join(SHARED_DIR, name), Buffer.from(body.contentBase64 || '', 'base64'))
+      emit('files', { name })
+      return sendJson(res, 200, { ok: true, name })
+    }
+    if (path === '/api/files/download' && req.method === 'GET') {
+      const name = path3.basename(String(url.searchParams.get('name') || ''))
+      const file = path3.join(SHARED_DIR, name)
+      if (!name || !file.startsWith(SHARED_DIR)) return sendJson(res, 400, { error: 'Invalid filename' })
+      try {
+        const stat = await fs.promises.stat(file)
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': stat.size,
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(name)}"`,
+        })
+        fs.createReadStream(file).pipe(res)
+      } catch { return sendJson(res, 404, { error: 'File not found' }) }
+      return
+    }
+    if (path === '/api/files' && req.method === 'DELETE') {
+      const name = path3.basename(String(url.searchParams.get('name') || ''))
+      if (name) { await fs.promises.unlink(path3.join(SHARED_DIR, name)).catch(() => {}); emit('files', { deleted: name }) }
+      return sendJson(res, 200, { ok: true })
     }
 
     /* ---------------- engine discovery ---------------- */
@@ -211,12 +304,29 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: cancelDownload(id) })
     }
 
+    /* ---------------- static app ---------------- */
+    if (!path.startsWith('/api/') && req.method === 'GET') {
+      const dist = path3.resolve(ROOT, 'dist')
+      const requested = path3.normalize(decodeURIComponent(url.pathname)).replace(/^([/\\]|\.\.[/\\])+/, '')
+      let file = path3.join(dist, requested)
+      if (!file.startsWith(dist)) file = path3.join(dist, 'index.html')
+      try {
+        const stat = await fs.promises.stat(file)
+        if (stat.isDirectory()) file = path3.join(file, 'index.html')
+      } catch { file = path3.join(dist, 'index.html') }
+      const ext = path3.extname(file).toLowerCase()
+      const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.woff2': 'font/woff2' }
+      res.writeHead(200, { 'Content-Type': types[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=3600' })
+      fs.createReadStream(file).on('error', () => { res.writeHead(404); res.end('Not found') }).pipe(res)
+      return
+    }
+
     return sendJson(res, 404, { error: 'Not found' })
   } catch (e) {
     return sendJson(res, 500, { error: e.message || String(e) })
   }
 })
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`FordOS API listening on http://127.0.0.1:${PORT}`)
+server.listen(PORT, config.host || '0.0.0.0', () => {
+  console.log(`FordOS listening on http://0.0.0.0:${PORT}`)
 })

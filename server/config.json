@@ -1,5 +1,8 @@
 {
   "port": 8787,
+  "host": "0.0.0.0",
+  "appUrl": "",
+  "accessCode": "",
   "ollama": {
     "url": "http://127.0.0.1:11434"
   },
