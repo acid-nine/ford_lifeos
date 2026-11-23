@@ -16,6 +16,9 @@ export default function App() {
   const { settings, notes } = data
   const [windows, setWindows] = usePersistentState('fordos.windows.v1', {})
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [restoreHint, setRestoreHint] = useState(null)
+  const windowsRef = useRef(windows)
+  windowsRef.current = windows
   const zRef = useRef(Math.max(10, ...Object.values(windows).map((w) => w.z || 0)))
   const booted = useRef(false)
 
@@ -36,6 +39,13 @@ export default function App() {
   }, [])
 
   const openApp = useCallback((id) => {
+    if (windowsRef.current[id]?.minimized) {
+      const button = [...document.querySelectorAll('.dock button')].find((b) => b.getAttribute('aria-label') === APP_MAP[id]?.title)
+      if (button) {
+        const r = button.getBoundingClientRect()
+        setRestoreHint({ id, rect: { left: r.left, top: r.top, width: r.width, height: r.height } })
+      }
+    }
     setWindows((w) => {
       const app = APP_MAP[id]
       if (!app) return w
@@ -143,6 +153,8 @@ export default function App() {
             onFocus={() => focusWindow(id)}
             onClose={() => closeApp(id)}
             onMinimize={() => minimizeApp(id)}
+            restoreFrom={restoreHint?.id === id ? restoreHint.rect : null}
+            onRestoreDone={() => setRestoreHint(null)}
           >
             <ErrorBoundary name={app.title}>
               <Component onOpenApp={openApp} onCreate={create} />

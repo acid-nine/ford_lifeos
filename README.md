@@ -27,7 +27,7 @@ This builds the app and serves both the UI and API from `http://0.0.0.0:8787` on
 ## What's in it
 
 ### Desktop & apps
-- **OS shell** — draggable/resizable/minimizable windows, dock, live status bar, wallpapers and accent colors.
+- **OS shell** — draggable/resizable/minimizable windows, dock, live status bar, wallpapers and accent colors. Windows use a macOS-style **genie animation** when minimizing into (or restoring from) their dock icon, plus springy open/maximize, staggered command results and springy dock/modal motion. Settings → Reduce motion disables all of it.
 - **Overview** — daily stats, completion ring, today's focus list, schedule glance.
 - **Tasks & Projects** — smart lists, projects, priorities, due dates, list + drag-and-drop kanban.
 - **Calendar** — month grid, mini-calendar, day agenda, colored time-blocked events.

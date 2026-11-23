@@ -268,10 +268,11 @@ kbd {
   border-radius: var(--radius); background: var(--panel); border: 1px solid var(--border-strong);
   backdrop-filter: blur(var(--blur)) saturate(150%); -webkit-backdrop-filter: blur(var(--blur)) saturate(150%);
   box-shadow: 0 36px 90px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.07);
-  animation: win-in .22s cubic-bezier(.2,.8,.2,1) both;
+  animation: win-in .34s cubic-bezier(.16,1.1,.3,1) both;
 }
-.window.is-maximized { inset: 54px 12px 88px; width: auto !important; height: auto !important; left: auto !important; top: auto !important; }
-@keyframes win-in { from { opacity: 0; transform: scale(.97) translateY(8px); } to { opacity: 1; transform: none; } }
+.window.is-maximized { inset: 54px 12px 88px; width: auto !important; height: auto !important; left: auto !important; top: auto !important; animation: win-max .38s cubic-bezier(.18,.9,.22,1) both; }
+@keyframes win-in { 0% { opacity: 0; transform: scale(.94) translateY(14px); } 60% { opacity: 1; transform: scale(1.008) translateY(-2px); } 100% { opacity: 1; transform: none; } }
+@keyframes win-max { 0% { opacity: .6; transform: scale(.96); } 65% { transform: scale(1.006); } 100% { opacity: 1; transform: none; } }
 
 .window-bar {
   display: flex; align-items: center; height: 40px; padding: 0 12px; flex-shrink: 0;
@@ -304,6 +305,7 @@ kbd {
 }
 .dock-icon { position: relative; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 13px; background: transparent; color: var(--muted); transition: .18s cubic-bezier(.2,.8,.2,1); }
 .dock-icon:hover { color: var(--text); background: rgba(255,255,255,.09); transform: translateY(-5px) scale(1.08); }
+.dock-icon:active { transform: translateY(-1px) scale(.9); transition-duration: .08s; }
 .dock-icon.running { color: var(--text); }
 .dock-add { color: var(--accent); background: var(--accent-soft); }
 .dock-add:hover, .dock-add.active { color: #fff; background: var(--accent); }
@@ -342,7 +344,10 @@ kbd {
 .palette-input input::placeholder { color: var(--muted-2); }
 .palette-list { overflow-y: auto; padding: 8px; }
 .palette-group { padding: 10px 10px 5px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted-2); }
-.palette-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; background: none; color: var(--muted); text-align: left; font-size: 13px; }
+.palette-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; background: none; color: var(--muted); text-align: left; font-size: 13px; animation: palette-item .22s cubic-bezier(.16,1,.3,1) both; }
+.palette-item:nth-child(2n) { animation-delay: .018s; }
+.palette-item:nth-child(3n) { animation-delay: .036s; }
+@keyframes palette-item { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .palette-item.active { background: var(--accent-soft); color: var(--text); }
 .palette-item-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: rgba(255,255,255,.05); color: var(--accent); }
 .palette-item.active .palette-item-icon { background: var(--accent); color: #fff; }
@@ -365,7 +370,8 @@ kbd {
 
 .modal-scrim { position: absolute; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; padding: 18px; background: rgba(5,7,15,.66); backdrop-filter: blur(6px); animation: fade .18s both; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-.modal { width: min(460px, 100%); max-height: 100%; overflow-y: auto; border-radius: 16px; background: rgba(21,24,40,.98); border: 1px solid var(--border-strong); box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+.modal { width: min(460px, 100%); max-height: 100%; overflow-y: auto; border-radius: 16px; background: rgba(21,24,40,.98); border: 1px solid var(--border-strong); box-shadow: 0 30px 80px rgba(0,0,0,.6); animation: modal-pop .26s cubic-bezier(.16,1,.3,1) both; }
+@keyframes modal-pop { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: none; } }
 .modal-wide { width: min(620px, 100%); }
 .modal-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 20px 22px 14px; }
 .modal-head h2 { font-size: 17px; letter-spacing: -.01em; }
