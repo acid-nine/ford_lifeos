@@ -38,6 +38,14 @@ npm run preview
 - **Engines** — auto-discovery of Ollama, llama.cpp, Hermes, OpenCode, and any OpenAI-compatible endpoint. Shows model counts, loaded/GGUF models, GPU info from VRAM OPS, with a shortcut into VRAM Control.
 - **Runs** — full history with tool calls and results.
 
+### Agent Core
+A JARVIS-style neural command center (Three.js + UnrealBloomPass) that visualizes your agents:
+- **3D core** — 500-node neural web with dynamic glowing connections, four tilted dashed orbital rings, noise-driven particle dust, and orbiting sub-agent nodes for an agent's tools.
+- **State-driven visuals** — IDLE, THINKING (accelerated spin + amber flashes), EXECUTING TOOL (spawns orbiting nodes), SPEAKING (waveform displacement). Live agent runs drive these states automatically through SSE.
+- **Personalities** — JARVIS (amber, harmonic motion) and ULTRON (cyan, twitchy motion).
+- **HUD** — corner brackets, FPS/node/link telemetry, VRAM bar, tokens/sec, active tools, recent runs, and a working command terminal (`help`, `run <agent>`, `focus <agent>`, `state …`, `mode …`, `status`).
+- Tune the visuals via `BLOOM_STRENGTH`, `PARTICLE_COUNT`, and `HUD_HUE` at the top of `src/apps/AgentCore.jsx`.
+
 ### VRAM Control
 A dedicated app backed by the VRAM OPS service on `:8765`:
 - **Overview** — live GPU readings (VRAM used/total, temperature, load, power, fan, clocks), a usage sparkline, resident models, one-click unload-all, and Ollama pull progress.

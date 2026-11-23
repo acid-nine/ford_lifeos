@@ -6,7 +6,7 @@ import Dock from './components/Dock.jsx'
 import Window from './components/Window.jsx'
 import Desktop from './components/Desktop.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
-import { LayoutDashboard, CheckSquare, CalendarDays, FileText, Settings as SettingsIcon, Plus, Sun, RotateCcw, Bot, Gauge } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, CalendarDays, FileText, Settings as SettingsIcon, Plus, Sun, RotateCcw, Bot, Gauge, Atom } from 'lucide-react'
 
 const clamp = (n, min, max) => Math.min(Math.max(n, min), max)
 
@@ -108,6 +108,7 @@ export default function App() {
     { id: 'app-notes', group: 'Apps', label: 'Open Notes & Knowledge', icon: FileText, run: () => openApp('notes') },
     { id: 'app-ai', group: 'Apps', label: 'Open AI Studio', icon: Bot, run: () => openApp('ai') },
     { id: 'app-vram', group: 'Apps', label: 'Open VRAM Control', icon: Gauge, run: () => openApp('vram') },
+    { id: 'app-core', group: 'Apps', label: 'Open Agent Core', icon: Atom, run: () => openApp('core') },
     { id: 'app-settings', group: 'Apps', label: 'Open Settings', icon: SettingsIcon, run: () => openApp('settings') },
     { id: 'new-task', group: 'Quick actions', label: 'Create a new task', icon: Plus, run: () => create('task') },
     { id: 'new-event', group: 'Quick actions', label: 'Create a new event', icon: CalendarDays, run: () => create('event') },

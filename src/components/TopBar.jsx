@@ -29,6 +29,7 @@ export default function TopBar({ name, onOpenApp, onCommand }) {
           <button type="button" onClick={() => onOpenApp('notes')}>Notes</button>
           <button type="button" onClick={() => onOpenApp('ai')}>AI Studio</button>
           <button type="button" onClick={() => onOpenApp('vram')}>VRAM</button>
+          <button type="button" onClick={() => onOpenApp('core')}>Core</button>
         </nav>
       </div>
 
