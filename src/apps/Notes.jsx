@@ -17,7 +17,7 @@ function inline(raw) {
   return s
 }
 
-function renderMarkdown(src = '') {
+export function renderMarkdown(src = '') {
   const lines = src.replace(/\r/g, '').split('\n')
   let html = '', i = 0, list = null, inCode = false
   const code = []

@@ -3,6 +3,7 @@ import { uid, nowISO, config, parseCron, readJson, writeJson, ensureDataDir, DAT
 import { emit } from './state.js'
 import { chat } from './chat.js'
 import { TOOLS, runTool } from './tools.js'
+import { saveBrief } from './briefs.js'
 
 const FILE = path.join(DATA_DIR, 'fordos-agents.json')
 const active = new Set()
@@ -89,6 +90,26 @@ export async function deleteAgent(id) {
   return { ok: true }
 }
 
+export function extractBrief(text) {
+  const s = String(text || '').trim()
+  if (!s) return ''
+  const final = s.match(/(?:^|\n)#{1,3}\s*FINAL BRIEF\s*\n?([\s\S]*)$/i)
+  if (final && final[1].trim()) return final[1].trim()
+  const headings = [...s.matchAll(/(^|\n)#{1,3}\s+[^\n]+\n/g)]
+  if (headings.length) {
+    const last = headings[headings.length - 1]
+    const from = s.indexOf(last[0])
+    if (from >= 0) return s.slice(from).trim()
+  }
+  return s
+}
+
+export function briefTitle(agentName, body) {
+  const heading = body.match(/^#{1,3}\s+(.+)$/m)
+  if (heading && !/final brief/i.test(heading[1])) return heading[1].trim().slice(0, 120)
+  return `${agentName} brief · ${new Date().toLocaleDateString('en-US')}`
+}
+
 function toolInstructions(allowed) {
   const list = TOOLS.filter((t) => allowed.includes('*') || allowed.includes(t.name))
   return [
@@ -141,7 +162,8 @@ export async function runAgent(id, { prompt, trigger = 'manual' } = {}) {
       agent.systemPrompt,
     ].filter(Boolean).join('\n\n')
     const delegate = ['hermes', 'opencode'].includes(agent.engineId)
-    const fullSystem = delegate ? system : `${system}\n\n${toolInstructions(agent.tools || [])}`
+    const briefInstruction = '\n\nOUTPUT FORMAT: End your response with a section titled "## FINAL BRIEF" containing only the complete, self-contained deliverable (news brief, report, or answer). Keep any narration before it short.'
+    const fullSystem = `${delegate ? system : `${system}\n\n${toolInstructions(agent.tools || [])}`}${briefInstruction}`
     const messages = [{ role: 'user', content: run.prompt }]
     const timeoutMs = Number(agent.timeoutMs) || (delegate
       ? (config.agentDefaults.delegateTimeoutMs || 600000)
@@ -188,6 +210,19 @@ export async function runAgent(id, { prompt, trigger = 'manual' } = {}) {
     run.status = 'success'
     agent.lastRun = nowISO()
     agent.runCount = (agent.runCount || 0) + 1
+    if (run.output?.trim()) {
+      try {
+        const body = extractBrief(run.output)
+        if (body) {
+          const brief = await saveBrief({
+            title: briefTitle(agent.name, body),
+            body, agentId: agent.id, agentName: agent.name,
+            runId: run.id, prompt: run.prompt,
+          })
+          run.briefId = brief.id
+        }
+      } catch { /* brief storage is best-effort */ }
+    }
   } catch (e) {
     run.status = 'error'
     run.error = e.message

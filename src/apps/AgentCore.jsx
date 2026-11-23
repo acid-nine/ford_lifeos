@@ -6,8 +6,10 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { ImprovedNoise } from 'three/examples/jsm/math/ImprovedNoise.js'
-import { Bot, Activity, Cpu, Terminal as TerminalIcon, Zap, Radio, ChevronRight, Circle, Eye, X, Play, AlertCircle } from 'lucide-react'
+import { Bot, Activity, Cpu, Terminal as TerminalIcon, Zap, Radio, ChevronRight, Circle, Eye, X, Play, AlertCircle, BookOpen, FileText, Trash2 } from 'lucide-react'
 import { AGENT_SHAPES, SHAPE_ICONS, AGENT_COLORS, agentVisual } from '../lib/visuals.js'
+import Modal from '../components/Modal.jsx'
+import { renderMarkdown } from './Notes.jsx'
 
 /* ------------------------------------------------------------------
    TUNEABLE VISUAL CONSTANTS
@@ -376,6 +378,9 @@ export default function AgentCore() {
   const [busy, setBusy] = useState(false)
   const [activeRun, setActiveRun] = useState(null)
   const [watching, setWatching] = useState(false)
+  const [briefs, setBriefs] = useState([])
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [activeBrief, setActiveBrief] = useState(null)
   const termRef = useRef(null)
   const feedRef = useRef(null)
   const stateTimer = useRef(null)
@@ -391,13 +396,20 @@ export default function AgentCore() {
     } catch { /* API offline */ }
   }, [selectedId])
 
+  const loadBriefs = useCallback(async () => {
+    try { setBriefs(await api('/briefs?limit=40')) } catch { /* ignore */ }
+  }, [])
+
   useEffect(() => {
     load()
+    loadBriefs()
     const poll = setInterval(async () => {
       load()
+      loadBriefs()
       try { setVram(await api('/vram/state')) } catch { /* ignore */ }
     }, 3000)
     const source = new EventSource('/api/events')
+    source.addEventListener('brief', () => loadBriefs())
     source.addEventListener('run', (e) => {
       try {
         const run = JSON.parse(e.data)
@@ -413,7 +425,7 @@ export default function AgentCore() {
       } catch { /* ignore */ }
     })
     return () => { clearInterval(poll); source.close(); clearTimeout(stateTimer.current) }
-  }, [load])
+  }, [load, loadBriefs])
 
   useEffect(() => { termRef.current?.scrollTo(0, termRef.current.scrollHeight) }, [lines])
   useEffect(() => { feedRef.current?.scrollTo(0, feedRef.current.scrollHeight) }, [activeRun?.steps?.length, activeRun?.output])
@@ -449,6 +461,11 @@ export default function AgentCore() {
     } catch (e) { push(`Visual update failed: ${e.message}`, 'err') }
   }
 
+  const openBrief = async (id) => {
+    try { setActiveBrief(await api(`/briefs/${id}`)); setLibraryOpen(true) }
+    catch (e) { push(`Could not open brief: ${e.message}`, 'err') }
+  }
+
   const command = async (e) => {
     e.preventDefault()
     const raw = input.trim()
@@ -480,6 +497,13 @@ export default function AgentCore() {
       case 'mode': {
         const m = arg.toLowerCase()
         if (m === 'jarvis' || m === 'ultron') { setPersonality(m); push(`Personality: ${m.toUpperCase()}`, 'ok') } else push('Use jarvis or ultron.', 'err')
+        break
+      }
+      case 'briefs':
+        briefs.forEach((b) => push(`  ${b.title} — ${new Date(b.createdAt).toLocaleDateString()}`, 'out')); break
+      case 'brief': {
+        const found = arg ? briefs.find((b) => b.id === arg || b.title.toLowerCase().includes(arg.toLowerCase())) : briefs[0]
+        if (found) { openBrief(found.id); push(`Opened: ${found.title}`, 'ok') } else push('No brief found.', 'err')
         break
       }
       case 'watch':
@@ -611,7 +635,12 @@ export default function AgentCore() {
               </div>
             ))}
           </div>
-          {watchRun?.output && <div className="core-watch-output"><strong>RESULT</strong><p>{watchRun.output}</p></div>}
+          {watchRun?.output && (
+            <div className="core-watch-output">
+              <div className="core-watch-output-head"><strong>RESULT</strong>{watchRun.briefId && <button type="button" className="btn ghost small" onClick={() => openBrief(watchRun.briefId)}><BookOpen size={12} /> Read brief</button>}</div>
+              <p>{watchRun.output}</p>
+            </div>
+          )}
           {watchRun?.error && <div className="run-error"><AlertCircle size={13} /> {String(watchRun.error)}</div>}
         </aside>
       )}
@@ -622,6 +651,17 @@ export default function AgentCore() {
           <span className="eyebrow">Active tools</span>
           {(agent?.tools || []).length === 0 && <div className="empty-mini">No tools bound to this agent.</div>}
           {(agent?.tools || []).map((t) => <div className="core-tool" key={t}><Circle size={8} fill="currentColor" /> {t}</div>)}
+        </div>
+        <div className="core-brief-list">
+          <span className="eyebrow">Briefs</span>
+          {briefs.length === 0 && <div className="empty-mini">No briefs saved yet.</div>}
+          {briefs.slice(0, 5).map((b) => (
+            <button type="button" className="core-brief" key={b.id} onClick={() => openBrief(b.id)}>
+              <FileText size={13} />
+              <span><strong>{b.title}</strong><em>{new Date(b.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} · {b.agentName}</em></span>
+            </button>
+          ))}
+          {briefs.length > 0 && <button type="button" className="btn ghost full small" onClick={() => { setActiveBrief(briefs[0]); setLibraryOpen(true) }}><BookOpen size={13} /> Open brief library</button>}
         </div>
         <div className="core-run-list">
           <span className="eyebrow">Recent runs</span>
@@ -643,6 +683,41 @@ export default function AgentCore() {
           {lines.map((l, i) => <div key={i} className={`term-${l.type}`}>{l.text}</div>)}
         </div>
       </form>
+
+      {libraryOpen && (
+        <Modal
+          title="Brief library"
+          subtitle="Clean final outputs from your agents, kept as readable reports"
+          onClose={() => setLibraryOpen(false)}
+          wide
+          footer={<>
+            {activeBrief && <button type="button" className="btn danger ghost" onClick={async () => { await api(`/briefs/${activeBrief.id}`, { method: 'DELETE' }); setActiveBrief(null); loadBriefs() }}><Trash2 size={14} /> Delete</button>}
+            <span className="spacer" />
+            <button type="button" className="btn ghost" onClick={() => setLibraryOpen(false)}>Close</button>
+          </>}
+        >
+          <div className="brief-library">
+            <div className="brief-list">
+              {briefs.length === 0 && <div className="empty-mini">No briefs saved yet.</div>}
+              {briefs.map((b) => (
+                <button type="button" key={b.id} className={`brief-item ${activeBrief?.id === b.id ? 'active' : ''}`} onClick={() => setActiveBrief(b)}>
+                  <strong>{b.title}</strong>
+                  <em>{b.agentName} · {new Date(b.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</em>
+                  <p>{b.body.replace(/[#*`>]/g, '').slice(0, 90)}</p>
+                </button>
+              ))}
+            </div>
+            <div className="brief-reader">
+              {activeBrief ? (
+                <>
+                  <div className="brief-meta"><span className="eyebrow"><FileText size={12} /> Brief</span><h3>{activeBrief.title}</h3><p>By {activeBrief.agentName} · {new Date(activeBrief.createdAt).toLocaleString()}</p></div>
+                  <div className="brief-body markdown" dangerouslySetInnerHTML={{ __html: renderMarkdown(activeBrief.body) }} />
+                </>
+              ) : <div className="empty-mini">Select a brief to read it.</div>}
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

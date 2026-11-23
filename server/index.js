@@ -4,11 +4,23 @@ import { initState, getState, putState, subscribe } from './state.js'
 import { discover } from './discovery.js'
 import { chat } from './chat.js'
 import { TOOLS } from './tools.js'
-import { initAgents, listAgents, getAgent, saveAgent, deleteAgent, listRuns, runAgent, startScheduler } from './agents.js'
+import { initAgents, listAgents, getAgent, saveAgent, deleteAgent, listRuns, runAgent, startScheduler, extractBrief, briefTitle } from './agents.js'
 import { vramRequest, hfSearch, hfTree, startDownload, cancelDownload, listDownloads, downloadTargets } from './vram.js'
+import { initBriefs, listBriefs, getBrief, saveBrief, deleteBrief } from './briefs.js'
 
 await initState()
 await initAgents()
+await initBriefs()
+/* Backfill briefs from successful runs that predate the brief store. */
+try {
+  const existing = new Set(listBriefs(200).map((b) => b.runId))
+  for (const run of listRuns(200)) {
+    if (run.status !== 'success' || !run.output?.trim() || existing.has(run.id)) continue
+    const body = extractBrief(run.output)
+    if (!body) continue
+    await saveBrief({ title: briefTitle(run.agentName || 'Agent', body), body, agentId: run.agentId, agentName: run.agentName, runId: run.id, prompt: run.prompt })
+  }
+} catch { /* best effort */ }
 startScheduler()
 
 const PORT = config.port || 8787
@@ -176,6 +188,18 @@ const server = http.createServer(async (req, res) => {
     if (path === '/api/hf/download' && req.method === 'POST') {
       try { return sendJson(res, 200, startDownload(await readBody(req))) }
       catch (e) { return sendJson(res, 400, { error: e.message }) }
+    }
+
+    /* ---------------- briefs ---------------- */
+    if (path === '/api/briefs' && req.method === 'GET') {
+      return sendJson(res, 200, listBriefs(Number(url.searchParams.get('limit')) || 60))
+    }
+    if (path.startsWith('/api/briefs/') && req.method === 'GET') {
+      const brief = getBrief(path.split('/')[3])
+      return brief ? sendJson(res, 200, brief) : sendJson(res, 404, { error: 'Brief not found' })
+    }
+    if (path.startsWith('/api/briefs/') && req.method === 'DELETE') {
+      return sendJson(res, 200, await deleteBrief(path.split('/')[3]))
     }
 
     /* ---------------- downloads ---------------- */
